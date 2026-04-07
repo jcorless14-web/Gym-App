@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -34,11 +35,9 @@ import {
   YAxis,
 } from "recharts";
 
-// Notes:
-// 1) This is built to be dropped into app/page.tsx in a Next.js app.
-// 2) Install deps first:
-//    npm install framer-motion lucide-react recharts pdfjs-dist
-// 3) If pdf import fails on first try, restart dev server after installing.
+// Drop this into app/page.tsx
+// Required packages:
+// npm install framer-motion lucide-react recharts pdfjs-dist
 
 const STORAGE_KEY = "gym-app-v10-dark-pro";
 
@@ -85,21 +84,57 @@ type TabKey = "dashboard" | "workout" | "progress" | "history" | "import";
 const EXERCISE_LIBRARY: Record<string, Omit<Exercise, "id" | "sets">[]> = {
   Push: [
     { name: "Bench Press", category: "Chest", repTarget: "5-8", tips: ["Set upper back first", "Touch low chest", "Press back and up"] },
+    { name: "Paused Bench Press", category: "Chest", repTarget: "4-8", tips: ["Pause properly", "Stay tight", "Explode from chest"] },
     { name: "Incline Dumbbell Press", category: "Upper Chest", repTarget: "6-10", tips: ["Moderate incline", "Control stretch", "Drive elbows under wrists"] },
+    { name: "Incline Smith Press", category: "Upper Chest", repTarget: "6-10", tips: ["Keep bar path fixed", "Lower with control", "Drive through upper chest"] },
+    { name: "Machine Chest Press", category: "Chest", repTarget: "8-12", tips: ["Set seat correctly", "Full stretch", "Controlled lockout"] },
+    { name: "Weighted Dips", category: "Chest/Triceps", repTarget: "6-10", tips: ["Slight lean forward", "Shoulders down", "Do not dive too deep"] },
+    { name: "Seated Dumbbell Shoulder Press", category: "Shoulders", repTarget: "6-10", tips: ["Brace torso", "Drive up evenly", "Do not slam reps"] },
+    { name: "Machine Shoulder Press", category: "Shoulders", repTarget: "8-12", tips: ["Align handles", "Control negative", "Stay planted"] },
     { name: "Cable Lateral Raise", category: "Side Delts", repTarget: "10-15", tips: ["Lead with elbow", "Do not shrug", "Continuous tension"] },
+    { name: "Dumbbell Lateral Raise", category: "Side Delts", repTarget: "12-20", tips: ["Soft bend in elbow", "Raise out not up", "No heaving"] },
+    { name: "Machine Lateral Raise", category: "Side Delts", repTarget: "10-15", tips: ["Stay fixed", "Smooth tempo", "Hard squeeze at top"] },
+    { name: "Cable Fly", category: "Chest", repTarget: "12-15", tips: ["Slight bend", "Hug motion", "Stretch under control"] },
+    { name: "Pec Deck", category: "Chest", repTarget: "12-15", tips: ["Chest up", "Big squeeze", "Do not bounce open"] },
     { name: "Triceps Pushdown", category: "Triceps", repTarget: "10-15", tips: ["Upper arms fixed", "Hard lockout", "Control eccentric"] },
+    { name: "Overhead Cable Triceps Extension", category: "Triceps", repTarget: "10-15", tips: ["Elbows high", "Stretch long head", "Full extension"] },
+    { name: "Skull Crusher", category: "Triceps", repTarget: "8-12", tips: ["Lower behind forehead", "Elbows stable", "Avoid flaring"] },
   ],
   Pull: [
+    { name: "Weighted Pull-Up", category: "Lats", repTarget: "5-8", tips: ["Chest up", "Pull elbows down", "Own the top"] },
+    { name: "Assisted Pull-Up", category: "Lats", repTarget: "8-12", tips: ["Full stretch", "Controlled assistance", "Drive elbows down"] },
     { name: "Lat Pulldown", category: "Lats", repTarget: "8-12", tips: ["Pull elbows low", "No huge lean", "Own the eccentric"] },
+    { name: "Neutral Grip Pulldown", category: "Lats", repTarget: "8-12", tips: ["Drive elbows in", "Stay tall", "Pause at bottom"] },
     { name: "Chest Supported Row", category: "Upper Back", repTarget: "6-10", tips: ["Stay on the pad", "Pause at torso", "Drive elbows back"] },
+    { name: "Machine Row", category: "Upper Back", repTarget: "8-12", tips: ["Brace into pad", "Pull to lower ribs", "Control stretch"] },
+    { name: "Seated Cable Row", category: "Upper Back", repTarget: "8-12", tips: ["Neutral torso", "Pull through elbows", "Do not overlean"] },
+    { name: "Single Arm Cable Pulldown", category: "Lats", repTarget: "10-15", tips: ["Stretch fully", "Drive elbow to hip", "No torso twist"] },
+    { name: "Straight Arm Pulldown", category: "Lats", repTarget: "10-15", tips: ["Arms long", "Depress shoulders", "Sweep to hips"] },
     { name: "Face Pull", category: "Rear Delts", repTarget: "12-20", tips: ["Pull high", "Rotate back", "Slow return"] },
+    { name: "Rear Delt Fly", category: "Rear Delts", repTarget: "12-20", tips: ["Open wide", "Keep traps quiet", "Smooth arc"] },
     { name: "EZ Bar Curl", category: "Biceps", repTarget: "8-12", tips: ["Keep elbows still", "No torso swing", "Control negative"] },
+    { name: "Incline Dumbbell Curl", category: "Biceps", repTarget: "10-15", tips: ["Stretch fully", "Curl without swinging", "Supinate hard"] },
+    { name: "Hammer Curl", category: "Brachialis", repTarget: "10-15", tips: ["Neutral grip", "Drive up cleanly", "Slow lower"] },
+    { name: "Cable Curl", category: "Biceps", repTarget: "10-15", tips: ["Keep tension on", "Squeeze hard", "Do not let shoulders roll"] },
+    { name: "Preacher Curl", category: "Biceps", repTarget: "8-12", tips: ["Stay fixed", "Full extension under control", "Hard squeeze"] },
   ],
   Legs: [
     { name: "Back Squat", category: "Quads", repTarget: "5-8", tips: ["Brace hard", "Midfoot pressure", "Drive up hard"] },
+    { name: "Safety Bar Squat", category: "Quads", repTarget: "5-8", tips: ["Stay stacked", "Drive through floor", "Keep upper back tight"] },
+    { name: "Hack Squat", category: "Quads", repTarget: "6-10", tips: ["Control depth", "Keep hips down", "Drive knees through"] },
+    { name: "Leg Press", category: "Quads", repTarget: "10-15", tips: ["Do not bounce", "Keep pelvis planted", "Deep safe range"] },
     { name: "Romanian Deadlift", category: "Hamstrings", repTarget: "6-10", tips: ["Push hips back", "Bar close", "Stop at stretch"] },
+    { name: "DB Romanian Deadlift", category: "Hamstrings", repTarget: "8-12", tips: ["Long hinge", "Keep lats tight", "Full stretch"] },
+    { name: "Bulgarian Split Squat", category: "Glutes/Quads", repTarget: "8-12", tips: ["Stable stance", "Control descent", "Drive through front foot"] },
+    { name: "Walking Lunge", category: "Glutes/Quads", repTarget: "10-16", tips: ["Long enough stride", "Stay balanced", "Keep torso proud"] },
     { name: "Leg Extension", category: "Quads", repTarget: "10-15", tips: ["Control squeeze", "No bouncing", "Full top contraction"] },
     { name: "Seated Hamstring Curl", category: "Hamstrings", repTarget: "10-15", tips: ["Set hips back", "Pause in squeeze", "Slow eccentric"] },
+    { name: "Lying Hamstring Curl", category: "Hamstrings", repTarget: "10-15", tips: ["Hips down", "Hard squeeze", "Control lower"] },
+    { name: "Standing Calf Raise", category: "Calves", repTarget: "8-15", tips: ["Deep stretch", "Pause high", "Do not bounce"] },
+    { name: "Seated Calf Raise", category: "Calves", repTarget: "10-20", tips: ["Stretch fully", "Pause on toes", "Controlled rhythm"] },
+    { name: "Cable Crunch", category: "Abs", repTarget: "10-20", tips: ["Round spine", "Curl ribs to pelvis", "Do not yank rope"] },
+    { name: "Machine Crunch", category: "Abs", repTarget: "10-20", tips: ["Controlled crunch", "Full squeeze", "Slow return"] },
+    { name: "Adductor Machine", category: "Adductors", repTarget: "12-20", tips: ["Control open", "Squeeze hard", "Stay seated properly"] },
   ],
 };
 
@@ -119,9 +154,9 @@ function makeExercise(base: Omit<Exercise, "id" | "sets">, index: number): Exerc
 
 function makeDefaultDays(): TrainingDay[] {
   return [
-    { id: "push", label: "Push", exercises: EXERCISE_LIBRARY.Push.map((e, i) => makeExercise(e, i)) },
-    { id: "pull", label: "Pull", exercises: EXERCISE_LIBRARY.Pull.map((e, i) => makeExercise(e, i)) },
-    { id: "legs", label: "Legs", exercises: EXERCISE_LIBRARY.Legs.map((e, i) => makeExercise(e, i)) },
+    { id: "push", label: "Push", exercises: EXERCISE_LIBRARY.Push.slice(0, 6).map((e, i) => makeExercise(e, i)) },
+    { id: "pull", label: "Pull", exercises: EXERCISE_LIBRARY.Pull.slice(0, 6).map((e, i) => makeExercise(e, i)) },
+    { id: "legs", label: "Legs", exercises: EXERCISE_LIBRARY.Legs.slice(0, 6).map((e, i) => makeExercise(e, i)) },
   ];
 }
 
@@ -160,8 +195,7 @@ function parseImportText(raw: string): ImportPreview[] {
 
 async function extractPdfText(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
-  const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
   const bytes = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
@@ -171,7 +205,7 @@ async function extractPdfText(file: File): Promise<string> {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
     const pageText = content.items
-      .map((item: any) => ("str" in item ? item.str : ""))
+      .map((item: { str?: string }) => ("str" in item ? item.str ?? "" : ""))
       .join(" ");
     fullText += pageText + "\n";
   }
@@ -215,7 +249,9 @@ export default function Page() {
       setLogs(parsed.logs ?? []);
       setImportText(parsed.importText ?? "");
       setPdfRawText(parsed.pdfRawText ?? "");
-    } catch {}
+    } catch {
+      // ignore corrupted local state
+    }
   }, []);
 
   useEffect(() => {
@@ -424,10 +460,10 @@ export default function Page() {
     try {
       const text = await extractPdfText(file);
       setPdfRawText(text);
-      setPdfMessage("PDF text extracted. Now format the lines below into: Exercise - YYYY-MM-DD - 90x5");
+      setPdfMessage("PDF text extracted. Now clean the lines into: Exercise - YYYY-MM-DD - 90x5");
     } catch (error) {
       console.error(error);
-      setPdfMessage("PDF import failed. Install pdfjs-dist and restart dev server, or paste cleaned text manually.");
+      setPdfMessage("PDF import failed. You can still paste cleaned text manually.");
     } finally {
       setPdfLoading(false);
     }
@@ -447,8 +483,8 @@ export default function Page() {
     : "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500";
   const buttonPrimary = "rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:opacity-90";
   const buttonSecondary = dark
-    ? "rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-    : "rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50";
+    ? "inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+    : "inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50";
 
   if (!mounted) return null;
 
@@ -473,7 +509,7 @@ export default function Page() {
                   Sleek, dark, professional training tracker.
                 </h1>
                 <p className={`mt-3 max-w-2xl text-sm md:text-base ${muted}`}>
-                  Better than the basic page you have live now: proper dashboard, workout logging, progress, session history, and historic data import.
+                  Dashboard, workout logging, progress graphs, session history, and historic data import in one cleaner build.
                 </p>
               </div>
 
@@ -503,8 +539,8 @@ export default function Page() {
                   active
                     ? "bg-cyan-400 text-slate-950"
                     : dark
-                    ? "border border-white/10 bg-white/5 text-white hover:bg-white/10"
-                    : "border border-slate-300 bg-white text-slate-900"
+                      ? "border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                      : "border border-slate-300 bg-white text-slate-900"
                 }`}
               >
                 {icon}
@@ -541,9 +577,7 @@ export default function Page() {
                       setTab("workout");
                     }}
                     className={`rounded-[24px] border p-4 text-left transition ${
-                      dark
-                        ? "border-white/10 bg-white/5 hover:bg-white/10"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
+                      dark ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -564,9 +598,9 @@ export default function Page() {
                   <Zap className="h-4 w-4 text-cyan-300" /> Quick stats
                 </div>
                 <div className={`grid gap-3 text-sm ${muted}`}>
-                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Live app style is now much closer to your V9 direction.</div>
-                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Historic data can be pasted as text or extracted from PDF.</div>
-                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Everything persists in local storage for now, so it survives refresh.</div>
+                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Cleaner V10 build with fixed PDF import.</div>
+                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Bigger push, pull, and legs exercise libraries.</div>
+                  <div className="rounded-2xl border border-white/10 bg-black/10 p-4">Everything persists locally so it survives refresh.</div>
                 </div>
               </div>
 
@@ -734,7 +768,7 @@ export default function Page() {
 
               <div className={`rounded-[28px] p-5 ${panel}`}>
                 <div className="mb-3 text-sm font-semibold">Add exercise</div>
-                <div className="grid gap-2">
+                <div className="grid gap-2 max-h-[420px] overflow-auto">
                   {(EXERCISE_LIBRARY[activeDay.label as keyof typeof EXERCISE_LIBRARY] ?? []).map((exercise) => (
                     <button
                       key={exercise.name}
